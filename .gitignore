@@ -5,3 +5,4 @@ dist/
 *.spec
 data/high_scores.json
 assets/models/*.task
+*.zip
