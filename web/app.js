@@ -12,25 +12,25 @@ const buttons = () => {
   const rows = {
     menu:["PLAY", "HOW TO PLAY", "SETTINGS", "HIGH SCORES", "ABOUT"], difficulty:["EASY", "MEDIUM", "HARD", "BACK"],
     instructions:["BACK"], settings:["FULL SCREEN", "BACK"], paused:["RESUME", "RESTART", "MAIN MENU"],
-    gameover:["PLAY AGAIN", "MAIN MENU", "HIGH SCORES"], scores:["BACK"], about:["BACK"]
+    gameover:["PLAY AGAIN", "MAIN MENU", "HIGH SCORES"], scores:["BACK"], about:["BACK TO MENU"]
   }[state] || [];
-  const y = state === "instructions" ? 575 : state === "scores" ? 570 : state === "gameover" ? 465 : 310;
+  const y = state === "instructions" ? 575 : state === "scores" ? 570 : state === "about" ? 505 : state === "gameover" ? 465 : 310;
   return rows.map((label,i) => ({label, x:W/2-165, y:y+i*72, w:330, h:55}));
 };
 
 function audio(name) {
   if (!soundContext) return; const now = soundContext.currentTime;
-  const settings = {click:[660,.07,"sine"], slice:[550,.11,"triangle"], bomb:[70,.32,"sawtooth"], lose:[180,.2,"square"], gameover:[125,.55,"sine"]}[name];
+  const settings = {click:[660,.07,"sine"], launch:[260,.09,"sine"], slice:[620,.13,"triangle"], bomb:[70,.38,"sawtooth"], lose:[180,.24,"square"], gameover:[125,.60,"sine"]}[name];
   if (!settings) return; const [hz,duration,type] = settings, osc=soundContext.createOscillator(), gain=soundContext.createGain();
   osc.type=type; osc.frequency.setValueAtTime(hz,now); osc.frequency.exponentialRampToValueAtTime(Math.max(35,hz*.55),now+duration);
-  gain.gain.setValueAtTime(.12,now); gain.gain.exponentialRampToValueAtTime(.001,now+duration); osc.connect(gain).connect(soundContext.destination); osc.start(now); osc.stop(now+duration);
+  gain.gain.setValueAtTime(.18,now); gain.gain.exponentialRampToValueAtTime(.001,now+duration); osc.connect(gain).connect(soundContext.destination); osc.start(now); osc.stop(now+duration);
 }
 function startMusic() { clearInterval(musicTimer); musicTimer=setInterval(()=>audio("click"), 2200); }
 function resetGame(){ fruits=[];particles=[];score=0;lives=10;combo=0;startedAt=performance.now();makeFruit();spawnAt=startedAt+850; }
 function pointIn(p,b){return p && p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h;}
 function choose(label){ audio("click"); if(label==="PLAY"){state="difficulty";} else if(["EASY","MEDIUM","HARD"].includes(label)){selectedDifficulty=label[0]+label.slice(1).toLowerCase();resetGame();state="playing";} else if(label==="HOW TO PLAY")state="instructions"; else if(label==="SETTINGS")state="settings"; else if(label==="HIGH SCORES")state="scores"; else if(label==="ABOUT")state="about"; else if(label==="FULL SCREEN")canvas.requestFullscreen?.(); else if(label==="RESUME")state="playing"; else if(label==="RESTART"||label==="PLAY AGAIN"){resetGame();state="playing";} else state="menu"; buttonDwell={label:"",since:0}; }
 function updateButtons(now){ for(const b of buttons()){if(pointIn(pointer,b)){if(buttonDwell.label!==b.label)buttonDwell={label:b.label,since:now}; if(now-buttonDwell.since>750)choose(b.label); return;} } buttonDwell={label:"",since:0}; }
-function makeFruit(){const d=difficulty[selectedDifficulty], bomb=Math.random()<d.bomb; fruits.push({x:80+Math.random()*(W-160),y:H+72,vx:(Math.random()-.5)*285*d.speed,vy:-(760+Math.random()*100),r:bomb?35:29+Math.random()*13,bomb,color:COLORS[(Math.random()*COLORS.length)|0],spin:(Math.random()-.5)*6});}
+function makeFruit(){const d=difficulty[selectedDifficulty], bomb=Math.random()<d.bomb; fruits.push({x:80+Math.random()*(W-160),y:H+72,vx:(Math.random()-.5)*285*d.speed,vy:-(760+Math.random()*100),r:bomb?35:29+Math.random()*13,bomb,color:COLORS[(Math.random()*COLORS.length)|0],spin:(Math.random()-.5)*6});audio("launch");}
 function burst(x,y,color,count=20){for(let i=0;i<count;i++){const a=Math.random()*Math.PI*2,s=70+Math.random()*260;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,color,life:.35+Math.random()*.55,size:3+Math.random()*6});}}
 function segmentHit(a,b,o){if(!a||!b)return false;const dx=b.x-a.x,dy=b.y-a.y,len=dx*dx+dy*dy,t=Math.max(0,Math.min(1,((o.x-a.x)*dx+(o.y-a.y)*dy)/(len||1)));return Math.hypot(o.x-(a.x+t*dx),o.y-(a.y+t*dy))<o.r+12;}
 function lose(x,y,why){lives--;burst(x,y,[255,68,83],38); audio(why==="BOMB"?"bomb":"lose"); if(lives<=0){audio("gameover");saveScore();state="gameover";}}
@@ -61,6 +61,6 @@ async function init(){try{
   try { handLandmarker=await HandLandmarker.createFromOptions(vision,options("GPU")); }
   catch { handLandmarker=await HandLandmarker.createFromOptions(vision,options("CPU")); }
   const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:320},height:{ideal:240},frameRate:{ideal:15,max:20},facingMode:"user"},audio:false});
-  video.srcObject=stream;await video.play();soundContext=new AudioContext();startMusic();status="Move your index finger to control the sword";gate.classList.add("hidden");requestAnimationFrame(gameLoop);
+  video.srcObject=stream;await video.play();soundContext=new AudioContext();await soundContext.resume();startMusic();status="Move your index finger to control the sword";gate.classList.add("hidden");requestAnimationFrame(gameLoop);
 }catch(err){status=`Camera setup failed: ${err.message}`;startButton.textContent="Try camera again";console.error(err);}}
 startButton.addEventListener("click",init);
